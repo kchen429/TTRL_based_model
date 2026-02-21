@@ -16,6 +16,13 @@ from collections import Counter
 import torch
 import numpy as np
 from verl.utils.reward_score.ttrl_math import extract_answer, simplify_expression_string, grade
+import math
+
+
+_TTRL_STEP = 0
+_T0 = 2.0       # 初始温度（大=更探索）
+_TMIN = 0.2     # 最小温度（小=更收敛）
+_GAMMA = 0.995  # 衰减率（越接近1越慢）
 
 def select_top_k_per_prompt(data, n_votes_per_prompt, n_samples_per_prompt):
     """
@@ -69,6 +76,8 @@ def apply_ttrl_gt(batch, gen_batch_output, n, tokenizer):
             model_outputs.append(response_str)
 
     majority_gt_list, majority_ratio_list = _batch_majority_vote(model_outputs, n)
+    # 🔴 NEW: temperature (先用最简单的版本：固定T，后面再做退火)
+    T = 2.0  # 你先跑通再改成随step退火
     
     assert len(batch) == len(majority_gt_list), "batch length must be equal to the number of model outputs"
     
@@ -78,9 +87,41 @@ def apply_ttrl_gt(batch, gen_batch_output, n, tokenizer):
         data_item.non_tensor_batch["reward_model"]["ground_truth"] = majority_gt_list[i]
         data_item.non_tensor_batch["reward_model"]["majority_gt"] = majority_gt_list[i]
         data_item.non_tensor_batch["reward_model"]["original_gt"] = original_gt
+        prompt_outputs = model_outputs[i * n : (i + 1) * n]  # 这题的n条答案
+        simp2prob = _cluster_softmax_prob(prompt_outputs, T)
+
+        # 把“简化答案 -> 概率”写回 reward_model，后面reward_func就能读
+        data_item.non_tensor_batch["reward_model"]["ttrl_simp2prob"] = simp2prob
+        data_item.non_tensor_batch["reward_model"]["ttrl_T"] = float(T)    
 
     batch.non_tensor_batch["majority_ratio_list"] = np.array(majority_ratio_list, dtype=float)
     return batch
+
+
+def _cluster_softmax_prob(model_outputs: List[str], T: float) -> dict:
+    """
+    For ONE prompt:
+    - extract boxed answers
+    - simplify to clusters
+    - compute softmax over cluster sizes exp(c/T)
+    Return: simp_answer -> prob
+    """
+    answers = [extract_answer(txt) for txt in model_outputs]
+    simp = [simplify_expression_string(a) for a in answers if a is not None]
+
+    if len(simp) == 0:
+        return {}
+
+    cnt = Counter(simp)  # cluster size
+
+    # softmax over cluster sizes
+    weights = {s: math.exp(c / T) for s, c in cnt.items()}
+    Z = sum(weights.values())
+    if Z <= 0:
+        return {}
+
+    return {s: w / Z for s, w in weights.items()}
+
 
 
 def _batch_majority_vote(model_outputs: List[str], n: int) -> tuple[List[str], List[float]]:
