@@ -9,7 +9,8 @@ DATE=$(date +%m%d)
 TIME_TAG=$(date +%H%M%S)
 
 TASK="AMC-TTT"
-BACKBONE="Qwen2.5-7B"
+# BACKBONE="Qwen2.5-7B"
+BACKBONE="Qwen2.5-1.5B"
 ADVANTAGE="grpo"
 
 K=3
