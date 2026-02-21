@@ -123,6 +123,7 @@ def reward_func(
     try:
         # ✅ NEW: 如果TTRL在batch里写了“cluster概率表”，就用它当连续reward
         if isinstance(extra_info, dict) and "ttrl_simp2prob" in extra_info:
+            print("DEBUG got ttrl_simp2prob:", list(extra_info["ttrl_simp2prob"].items())[:3])
             a = extract_answer(solution_str)
             if a is None:
                 return 0.0
