@@ -77,7 +77,9 @@ def apply_ttrl_gt(batch, gen_batch_output, n, tokenizer):
 
     majority_gt_list, majority_ratio_list = _batch_majority_vote(model_outputs, n)
     # 🔴 NEW: temperature (先用最简单的版本：固定T，后面再做退火)
-    T = 2.0  # 你先跑通再改成随step退火
+    # T = 2.0  # 你先跑通再改成随step退火
+    global _TTRL_STEP #改成随step退火
+    T = max(_TMIN, _T0 * (_GAMMA ** _TTRL_STEP)) 
     
     assert len(batch) == len(majority_gt_list), "batch length must be equal to the number of model outputs"
     
@@ -95,6 +97,7 @@ def apply_ttrl_gt(batch, gen_batch_output, n, tokenizer):
         data_item.non_tensor_batch["reward_model"]["ttrl_T"] = float(T)    
 
     batch.non_tensor_batch["majority_ratio_list"] = np.array(majority_ratio_list, dtype=float)
+    _TTRL_STEP += 1
     return batch
 
 
