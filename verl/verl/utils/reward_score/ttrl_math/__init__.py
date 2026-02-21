@@ -102,10 +102,34 @@ def compute_score(model_response, gt_answer, fast=False):
             "pred": model_answer,
         }
 
+#def reward_func(data_source, solution_str, ground_truth, extra_info=None, sandbox_fusion_url=None, concurrent_semaphore=None):
+#    try:
+#        res = compute_score(solution_str, str(ground_truth))
+
+#        if isinstance(res, dict):
+#            return res
+#        elif isinstance(res, (int, float, bool)):
+#            return float(res)
+#        else:
+#            return float(res[0])
+#    except Exception as e:
+#        print(f"[ERROR] Error in process_completion for task : {str(e)}")
+#        traceback.print_exc()
+#        raise
+
 def reward_func(
     data_source, solution_str, ground_truth, extra_info=None, sandbox_fusion_url=None, concurrent_semaphore=None
 ):
     try:
+        # ✅ NEW: 如果TTRL在batch里写了“cluster概率表”，就用它当连续reward
+        if isinstance(extra_info, dict) and "ttrl_simp2prob" in extra_info:
+            a = extract_answer(solution_str)
+            if a is None:
+                return 0.0
+            s = simplify_expression_string(a)
+            return float(extra_info["ttrl_simp2prob"].get(s, 0.0))
+
+        # ✅ fallback：原来的GT判题（0/1 或 dict）
         res = compute_score(solution_str, str(ground_truth))
 
         if isinstance(res, dict):
@@ -114,6 +138,7 @@ def reward_func(
             return float(res)
         else:
             return float(res[0])
+
     except Exception as e:
         print(f"[ERROR] Error in process_completion for task : {str(e)}")
         traceback.print_exc()
