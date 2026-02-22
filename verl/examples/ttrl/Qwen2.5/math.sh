@@ -10,7 +10,7 @@ TIME_TAG=$(date +%H%M%S)
 
 TASK="MATH-TTT"
 # BACKBONE="Qwen2.5-7B"
-BACKBONE="Qwen2.5-1.5B"
+BACKBONE="Qwen2.5-Math-1.5B"
 ADVANTAGE="grpo"
 
 K=3
@@ -30,7 +30,7 @@ MINI_BATCH_SIZE=1
 MICRO_BATCH_SIZE=2
 
 DATA_LOCAL_DIR="path/to/TTRL/verl/data"
-BACKBONE_PATH="path/to/${BACKBONE}"
+BACKBONE_PATH="/home/kchen429/models/Qwen2.5-Math-1.5B"
 
 MODEL="${TASK}-${BACKBONE}"
 EXPERIMENT="TTRL-Len@${K}k"
